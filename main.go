@@ -1,13 +1,25 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+
+	"inovare-backend/config"
+	"inovare-backend/database"
+	"inovare-backend/routes"
+
+	_ "ariga.io/atlas-provider-gorm/gormschema"
+	"github.com/gin-gonic/gin"
+)
 
 func main() {
+	gin.SetMode(config.GetConfig().ServerMode)
+
+	database.Connect()
 	router := gin.Default()
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
-	})
-	router.Run() // listens on 0.0.0.0:8080 by default
+
+	routes.RegisterRoutes(router)
+
+	port := config.GetConfig().ServerPort
+	log.Printf("Server starting on port %s", port)
+	router.Run(":" + port)
 }
