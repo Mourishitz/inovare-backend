@@ -38,3 +38,24 @@ func Authenticate() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func OptionalAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token := parts[1]
+				claims, err := utils.ValidateToken(token)
+				if err == nil {
+					c.Set("userID", int(claims.UserID))
+					c.Set("username", claims.Username)
+
+					c.Next()
+					return
+				}
+			}
+		}
+		c.Next()
+	}
+}

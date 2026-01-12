@@ -45,6 +45,20 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	if user.Role > 1 {
+		loggedInUserID, exists := ctx.Get("userID")
+		if !exists {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required to assign roles"})
+			return
+		}
+
+		loggedInUser, err := c.userService.GetByID(loggedInUserID.(int))
+		if err != nil || loggedInUser.Role < 2 {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions to assign roles"})
+			return
+		}
+	}
+
 	createdUser, err := c.userService.Create(user)
 	if err != nil {
 		switch {

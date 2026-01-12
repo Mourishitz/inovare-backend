@@ -14,7 +14,7 @@ func RegisterUserRoutes(router *gin.Engine) {
 
 	public := router.Group("/api")
 	{
-		public.POST("/register", userController.CreateUser)
+		public.Use(middlewares.OptionalAuthMiddleware()).POST("/register", userController.CreateUser)
 
 		users := public.Group("/users")
 		{
