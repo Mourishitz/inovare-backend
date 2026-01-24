@@ -12,6 +12,6 @@ type CatalogProduct struct {
 	CatalogID uint    `json:"catalog_id"`
 	Catalog   Catalog `json:"catalog" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
-	// ProductID uint    `json:"product_id"`
-	// Product   Product `json:"product" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	ProductID uint    `json:"product_id"`
+	Product   Product `json:"product" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 }
