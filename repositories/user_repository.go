@@ -27,10 +27,11 @@ type userRepository struct {
 // Create implements UserRepository.
 func (u *userRepository) Create(user requests.CreateUserRequest) (*models.User, error) {
 	newUser := models.User{
-		Username: user.Username,
-		Email:    user.Email,
-		Password: user.Password,
-		Role:     user.Role,
+		Username:    user.Username,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		Password:    user.Password,
+		Role:        user.Role,
 	}
 
 	if err := u.db.Create(&newUser).Error; err != nil {

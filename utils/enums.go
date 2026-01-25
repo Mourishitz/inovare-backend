@@ -15,4 +15,3 @@ func IsValid[T comparable](m map[T]string, key T) bool {
 func GetAll[T comparable](m map[T]string) map[T]string {
 	return m
 }
-

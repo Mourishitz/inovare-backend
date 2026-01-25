@@ -15,6 +15,7 @@ type Configuration struct {
 	DBName            string
 	EncryptionKey     string
 	EncryptionSignKey string
+	FrontendURL       string
 }
 
 var config Configuration
@@ -31,6 +32,7 @@ func init() {
 		DBName:            getEnv("DB_NAME", ""),
 		EncryptionKey:     getEnv("ENCRYPTION_KEY", ""),
 		EncryptionSignKey: getEnv("ENCRYPTION_SIGN_KEY", ""),
+		FrontendURL:       getEnv("FRONTEND_URL", ""),
 	}
 }
 
