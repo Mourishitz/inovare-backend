@@ -20,6 +20,7 @@ type ShowerRepository interface {
 	Update(id int, updates requests.UpdateShowerRequest) (*models.Shower, error)
 	AddCatalog(showerID int, catalog *models.Catalog) error
 	AddPreferences(showerID int, preferences *models.Preferences) error
+	GetDashboardStats() (int64, int64, int64, []models.Shower, error)
 }
 
 type showerRepository struct {
@@ -189,4 +190,41 @@ func (r *showerRepository) AddPreferences(showerID int, preferences *models.Pref
 	}
 
 	return nil
+}
+
+// GetDashboardStats implements ShowerRepository.
+func (r *showerRepository) GetDashboardStats() (int64, int64, int64, []models.Shower, error) {
+	var totalShowers int64
+	var approvedCatalogs int64
+	var notApprovedCatalogs int64
+	var recentShowers []models.Shower
+
+	// Get total showers count
+	if err := r.db.Model(&models.Shower{}).Count(&totalShowers).Error; err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	// Count catalogs where approved=true
+	if err := r.db.Model(&models.Catalog{}).
+		Where("approved = ?", true).
+		Count(&approvedCatalogs).Error; err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	// Count catalogs where approved=false
+	if err := r.db.Model(&models.Catalog{}).
+		Where("approved = ?", false).
+		Count(&notApprovedCatalogs).Error; err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	// Get last 3 showers ordered by created_at
+	if err := r.db.Preload("Host").Preload("Catalog").Preload("Preferences").
+		Order("created_at DESC").
+		Limit(3).
+		Find(&recentShowers).Error; err != nil {
+		return 0, 0, 0, nil, err
+	}
+
+	return totalShowers, approvedCatalogs, notApprovedCatalogs, recentShowers, nil
 }

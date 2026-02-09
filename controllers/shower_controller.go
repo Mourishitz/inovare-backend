@@ -352,3 +352,32 @@ func (c *ShowerController) GetShowerCatalog(ctx *gin.Context) {
 		"products": products,
 	})
 }
+
+// GetAdminDashboard handles GET /api/admin/dashboard
+func (c *ShowerController) GetAdminDashboard(ctx *gin.Context) {
+	userID, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	user, err := c.userService.GetByID(userID.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Only Role 2+ (admins) can access dashboard
+	if user.Role < 2 {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions to access admin dashboard"})
+		return
+	}
+
+	stats, err := c.showerService.GetDashboardStats()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, stats)
+}

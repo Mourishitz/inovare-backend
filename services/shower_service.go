@@ -21,6 +21,7 @@ type ShowerService interface {
 	AddCatalog(showerID int, catalog requests.AddCatalogRequest) (*models.Shower, error)
 	AddPreferences(showerID int, preferences requests.AddPreferencesRequest) (*models.Shower, error)
 	GetCatalogWithProducts(showerID int) (*models.Catalog, []models.CatalogProduct, error)
+	GetDashboardStats() (map[string]interface{}, error)
 }
 
 type showerService struct {
@@ -226,4 +227,19 @@ func (s *showerService) GetCatalogWithProducts(showerID int) (*models.Catalog, [
 	}
 
 	return catalog, products, nil
+}
+
+// GetDashboardStats implements ShowerService.
+func (s *showerService) GetDashboardStats() (map[string]interface{}, error) {
+	totalShowers, approvedCatalogs, notApprovedCatalogs, recentShowers, err := s.showerRepo.GetDashboardStats()
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"total_showers":           totalShowers,
+		"approved_catalogs":       approvedCatalogs,
+		"not_approved_catalogs":   notApprovedCatalogs,
+		"recent_showers":          recentShowers,
+	}, nil
 }

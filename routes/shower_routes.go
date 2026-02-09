@@ -27,5 +27,10 @@ func RegisterShowerRoutes(router *gin.Engine) {
 			showers.POST("/:id/catalog", showerController.AddCatalog)
 			showers.POST("/:id/preferences", showerController.AddPreferences)
 		}
+
+		admin := protected.Group("/admin")
+		{
+			admin.GET("/dashboard", showerController.GetAdminDashboard)
+		}
 	}
 }
