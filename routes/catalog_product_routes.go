@@ -24,8 +24,8 @@ func RegisterCatalogProductRoutes(router *gin.Engine) {
 		{
 			catalogs.GET("/:id/products", catalogProductController.ListCatalogProducts)
 			catalogs.POST("/:id/attach-product", catalogProductController.AttachProduct)
-			catalogs.PATCH("/:catalog_id/update-product/:id", catalogProductController.UpdateCatalogProduct)
-			catalogs.DELETE("/:catalog_id/detach-product/:id", catalogProductController.DetachProduct)
+			catalogs.PATCH("/:id/update-product/:product_id", catalogProductController.UpdateCatalogProduct)
+			catalogs.DELETE("/:id/detach-product/:product_id", catalogProductController.DetachProduct)
 		}
 	}
 }

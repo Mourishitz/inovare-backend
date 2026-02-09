@@ -71,5 +71,14 @@ func (c *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusCreated, createdUser)
+	token, err := utils.GenerateToken(createdUser.ID, createdUser.Email)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, gin.H{
+		"user":  createdUser,
+		"token": token,
+	})
 }

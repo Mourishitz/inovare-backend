@@ -28,7 +28,7 @@ type AddPreferencesRequest struct {
 	PreferredModel   int16   `json:"preferredModel" binding:"required"`
 	PreferredPanties int16   `json:"preferredPanties" binding:"required"`
 	Size             int16   `json:"size" binding:"required"`
-	AllowedModels    string  `json:"allowedModels" binding:"required"`
+	AllowedModels    []int16 `json:"allowedModels" binding:"required"`
 	NotAllowedModels string  `json:"notAllowedModels" binding:"required"`
 	Notes            string  `json:"notes" binding:"required"`
 }

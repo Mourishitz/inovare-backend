@@ -15,6 +15,7 @@ type ShowerRepository interface {
 	GetByID(id int) (*models.Shower, error)
 	GetAll() ([]models.Shower, error)
 	GetAllPaginated(page, pageSize int) ([]models.Shower, int64, error)
+	GetByHostID(hostID uint) ([]models.Shower, error)
 	Create(shower requests.CreateShowerRequest) (*models.Shower, error)
 	Update(id int, updates requests.UpdateShowerRequest) (*models.Shower, error)
 	AddCatalog(showerID int, catalog *models.Catalog) error
@@ -78,6 +79,21 @@ func (r *showerRepository) GetAllPaginated(page, pageSize int) ([]models.Shower,
 	}
 
 	return showers, total, nil
+}
+
+// GetByHostID implements ShowerRepository.
+func (r *showerRepository) GetByHostID(hostID uint) ([]models.Shower, error) {
+	var showers []models.Shower
+
+	if err := r.db.Where("host_id = ?", hostID).
+		Preload("Host").
+		Preload("Catalog").
+		Preload("Preferences").
+		Find(&showers).Error; err != nil {
+		return nil, err
+	}
+
+	return showers, nil
 }
 
 // Create implements ShowerRepository.

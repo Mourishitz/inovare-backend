@@ -4,9 +4,10 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"inovare-backend/models/enums"
 	"inovare-backend/models/enums/preferred"
-	"strings"
 
 	"gorm.io/gorm"
 )
@@ -99,7 +100,7 @@ type Preferences struct {
 	PreferredModel   int16      `json:"-" gorm:"default:1"`
 	PreferredPanties int16      `json:"-" gorm:"default:1"`
 	Size             int16      `json:"-" gorm:"default:1"`
-	AllowedModels    string     `json:"allowedModels" gorm:"type:text"`
+	AllowedModels    Int16Array `json:"allowedModels" gorm:"type:smallint[]"`
 	NotAllowedModels string     `json:"notAllowedModels" gorm:"type:text"`
 	Notes            string     `json:"notes" gorm:"type:text"`
 }
@@ -116,6 +117,16 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	// Convert allowed model IDs to names
+	var allowedModelNames []string
+	if len(p.AllowedModels) > 0 {
+		for _, modelID := range p.AllowedModels {
+			if modelName, ok := preferred.ModelNames[modelID]; ok {
+				allowedModelNames = append(allowedModelNames, modelName)
+			}
+		}
+	}
+
 	type Alias Preferences
 	return json.Marshal(&struct {
 		*Alias
@@ -125,6 +136,7 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 		PreferredModel   string   `json:"preferredModel"`
 		PreferredPanties string   `json:"preferredPanties"`
 		Size             string   `json:"size"`
+		AllowedModels    []string `json:"allowedModels"`
 	}{
 		Alias:            (*Alias)(&p),
 		Style:            getStyleName(p.Style),
@@ -133,6 +145,7 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 		PreferredModel:   getModelName(p.PreferredModel),
 		PreferredPanties: getPantieName(p.PreferredPanties),
 		Size:             getSizeName(p.Size),
+		AllowedModels:    allowedModelNames,
 	})
 }
 

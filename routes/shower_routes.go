@@ -19,9 +19,11 @@ func RegisterShowerRoutes(router *gin.Engine) {
 		showers := protected.Group("/showers")
 		{
 			showers.GET("", showerController.ListShowers)
+			showers.GET("/me", showerController.GetMyShowers)
 			showers.GET("/:id", showerController.GetShower)
 			showers.POST("", showerController.CreateShower)
 			showers.PATCH("/:id", showerController.UpdateShower)
+			showers.GET("/:id/catalog", showerController.GetShowerCatalog)
 			showers.POST("/:id/catalog", showerController.AddCatalog)
 			showers.POST("/:id/preferences", showerController.AddPreferences)
 		}

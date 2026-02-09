@@ -14,24 +14,28 @@ type ShowerService interface {
 	GetByID(id int) (*models.Shower, error)
 	GetAll() ([]models.Shower, error)
 	GetAllPaginated(page, pageSize int) ([]models.Shower, int64, error)
+	GetByHostID(hostID uint) ([]models.Shower, error)
 	Create(shower requests.CreateShowerRequest) (*models.Shower, error)
 	CreateWithHost(shower requests.CreateShowerRequest, hostID uint) (*models.Shower, error)
 	Update(id int, updates requests.UpdateShowerRequest) (*models.Shower, error)
 	AddCatalog(showerID int, catalog requests.AddCatalogRequest) (*models.Shower, error)
 	AddPreferences(showerID int, preferences requests.AddPreferencesRequest) (*models.Shower, error)
+	GetCatalogWithProducts(showerID int) (*models.Catalog, []models.CatalogProduct, error)
 }
 
 type showerService struct {
-	showerRepo  repositories.ShowerRepository
-	userRepo    repositories.UserRepository
-	catalogRepo repositories.CatalogRepository
+	showerRepo         repositories.ShowerRepository
+	userRepo           repositories.UserRepository
+	catalogRepo        repositories.CatalogRepository
+	catalogProductRepo repositories.CatalogProductRepository
 }
 
 func NewShowerService() ShowerService {
 	return &showerService{
-		showerRepo:  repositories.NewShowerRepository(),
-		userRepo:    repositories.NewUserRepository(),
-		catalogRepo: repositories.NewCatalogRepository(),
+		showerRepo:         repositories.NewShowerRepository(),
+		userRepo:           repositories.NewUserRepository(),
+		catalogRepo:        repositories.NewCatalogRepository(),
+		catalogProductRepo: repositories.NewCatalogProductRepository(),
 	}
 }
 
@@ -48,6 +52,11 @@ func (s *showerService) GetAll() ([]models.Shower, error) {
 // GetAllPaginated implements ShowerService.
 func (s *showerService) GetAllPaginated(page, pageSize int) ([]models.Shower, int64, error) {
 	return s.showerRepo.GetAllPaginated(page, pageSize)
+}
+
+// GetByHostID implements ShowerService.
+func (s *showerService) GetByHostID(hostID uint) ([]models.Shower, error) {
+	return s.showerRepo.GetByHostID(hostID)
 }
 
 // Create implements ShowerService.
@@ -179,7 +188,7 @@ func (s *showerService) AddPreferences(showerID int, preferencesReq requests.Add
 		PreferredModel:   preferencesReq.PreferredModel,
 		PreferredPanties: preferencesReq.PreferredPanties,
 		Size:             preferencesReq.Size,
-		AllowedModels:    preferencesReq.AllowedModels,
+		AllowedModels:    models.Int16Array(preferencesReq.AllowedModels),
 		NotAllowedModels: preferencesReq.NotAllowedModels,
 		Notes:            preferencesReq.Notes,
 	}
@@ -189,4 +198,32 @@ func (s *showerService) AddPreferences(showerID int, preferencesReq requests.Add
 	}
 
 	return s.showerRepo.GetByID(showerID)
+}
+
+// GetCatalogWithProducts retrieves the catalog and all its products for a shower
+func (s *showerService) GetCatalogWithProducts(showerID int) (*models.Catalog, []models.CatalogProduct, error) {
+	// Validate shower exists
+	shower, err := s.showerRepo.GetByID(showerID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Check if shower has a catalog
+	if shower.CatalogID == nil {
+		return nil, nil, utils.ErrCatalogNotFound
+	}
+
+	// Get catalog
+	catalog, err := s.catalogRepo.GetByID(int(*shower.CatalogID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Get all products in the catalog
+	products, err := s.catalogProductRepo.GetByCatalogID(int(*shower.CatalogID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return catalog, products, nil
 }

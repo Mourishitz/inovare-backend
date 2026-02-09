@@ -143,6 +143,23 @@ func (c *ShowerController) ListShowers(ctx *gin.Context) {
 	})
 }
 
+// GetMyShowers handles GET /api/showers/me - Returns showers where user is the host
+func (c *ShowerController) GetMyShowers(ctx *gin.Context) {
+	userID, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	showers, err := c.showerService.GetByHostID(uint(userID.(int)))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": showers})
+}
+
 // CreateShower handles POST /api/showers
 func (c *ShowerController) CreateShower(ctx *gin.Context) {
 	var req requests.CreateShowerRequest
@@ -295,4 +312,43 @@ func (c *ShowerController) AddPreferences(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusCreated, shower)
+}
+
+// GetShowerCatalog handles GET /api/showers/:id/catalog
+func (c *ShowerController) GetShowerCatalog(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid shower ID"})
+		return
+	}
+
+	// Check ownership
+	authorized, err := c.checkShowerOwnership(ctx, id)
+	if err != nil || !authorized {
+		if errors.Is(err, utils.ErrUnauthorizedShowerAccess) || !authorized {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to access this shower"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	catalog, products, err := c.showerService.GetCatalogWithProducts(id)
+	if err != nil {
+		if errors.Is(err, utils.ErrShowerNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Shower not found"})
+			return
+		}
+		if errors.Is(err, utils.ErrCatalogNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog not found for this shower"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"catalog":  catalog,
+		"products": products,
+	})
 }

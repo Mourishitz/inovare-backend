@@ -123,15 +123,15 @@ func (c *CatalogProductController) ListCatalogProducts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, catalogProducts)
 }
 
-// UpdateCatalogProduct handles PATCH /api/catalogs/:catalog_id/update-product/:id
+// UpdateCatalogProduct handles PATCH /api/catalogs/:id/update-product/:product_id
 func (c *CatalogProductController) UpdateCatalogProduct(ctx *gin.Context) {
-	_, err := strconv.Atoi(ctx.Param("catalog_id"))
+	_, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog ID"})
 		return
 	}
 
-	id, err := strconv.Atoi(ctx.Param("id"))
+	productID, err := strconv.Atoi(ctx.Param("product_id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog product ID"})
 		return
@@ -163,7 +163,7 @@ func (c *CatalogProductController) UpdateCatalogProduct(ctx *gin.Context) {
 	}
 
 	// Update catalog product
-	catalogProduct, err := c.catalogProductService.UpdateCatalogProduct(id, req)
+	catalogProduct, err := c.catalogProductService.UpdateCatalogProduct(productID, req)
 	if err != nil {
 		if errors.Is(err, utils.ErrCatalogProductNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog product not found"})
@@ -176,15 +176,15 @@ func (c *CatalogProductController) UpdateCatalogProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, catalogProduct)
 }
 
-// DetachProduct handles DELETE /api/catalogs/:catalog_id/detach-product/:id
+// DetachProduct handles DELETE /api/catalogs/:id/detach-product/:product_id
 func (c *CatalogProductController) DetachProduct(ctx *gin.Context) {
-	_, err := strconv.Atoi(ctx.Param("catalog_id"))
+	_, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog ID"})
 		return
 	}
 
-	id, err := strconv.Atoi(ctx.Param("id"))
+	productID, err := strconv.Atoi(ctx.Param("product_id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog product ID"})
 		return
@@ -210,7 +210,7 @@ func (c *CatalogProductController) DetachProduct(ctx *gin.Context) {
 	}
 
 	// Detach product from catalog
-	err = c.catalogProductService.DetachProduct(id)
+	err = c.catalogProductService.DetachProduct(productID)
 	if err != nil {
 		if errors.Is(err, utils.ErrCatalogProductNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog product not found"})
