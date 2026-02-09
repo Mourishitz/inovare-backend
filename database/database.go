@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"inovare-backend/config"
 	"log"
 
 	"gorm.io/driver/postgres"
@@ -11,7 +12,9 @@ import (
 var DB *gorm.DB
 
 func Connect() {
-	dsn := "host=localhost user=username password=password dbname=inovare port=5432 sslmode=disable"
+	cfg := config.GetConfig()
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=5432 sslmode=disable",
+		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName)
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
