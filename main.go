@@ -5,6 +5,7 @@ import (
 
 	"inovare-backend/config"
 	"inovare-backend/database"
+	"inovare-backend/middlewares"
 	"inovare-backend/routes"
 
 	_ "ariga.io/atlas-provider-gorm/gormschema"
@@ -16,6 +17,8 @@ func main() {
 
 	database.Connect()
 	router := gin.Default()
+
+	router.Use(middlewares.CORSMiddleware())
 
 	routes.RegisterRoutes(router)
 
