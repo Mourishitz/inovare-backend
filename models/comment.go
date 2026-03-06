@@ -12,5 +12,5 @@ type Comment struct {
 	Author   User `json:"author" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 
 	CatalogID uint    `json:"catalog_id"`
-	Catalog   Catalog `json:"catalog" gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	Catalog   Catalog `json:"-" gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }

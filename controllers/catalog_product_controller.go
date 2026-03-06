@@ -75,6 +75,10 @@ func (c *CatalogProductController) AttachProduct(ctx *gin.Context) {
 			ctx.JSON(http.StatusConflict, gin.H{"error": "Product already exists in this catalog"})
 			return
 		}
+		if errors.Is(err, utils.ErrProductIsExclusive) {
+			ctx.JSON(http.StatusConflict, gin.H{"error": "Product is exclusive and already assigned to another catalog"})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -176,9 +180,54 @@ func (c *CatalogProductController) UpdateCatalogProduct(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, catalogProduct)
 }
 
+// CreateExclusiveProduct handles POST /api/catalogs/:id/exclusive-products
+func (c *CatalogProductController) CreateExclusiveProduct(ctx *gin.Context) {
+	catalogID, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog ID"})
+		return
+	}
+
+	// Get authenticated user
+	userID, exists := ctx.Get("userID")
+	if !exists {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		return
+	}
+
+	user, err := c.userService.GetByID(userID.(int))
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Only admins (Role 2+) can create exclusive products
+	if user.Role < 2 {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
+		return
+	}
+
+	var req requests.CreateExclusiveProductRequest
+	if !utils.BindAndValidate(ctx, &req) {
+		return
+	}
+
+	catalogProduct, err := c.catalogProductService.CreateExclusiveProduct(catalogID, req)
+	if err != nil {
+		if errors.Is(err, utils.ErrCatalogNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusCreated, catalogProduct)
+}
+
 // DetachProduct handles DELETE /api/catalogs/:id/detach-product/:product_id
 func (c *CatalogProductController) DetachProduct(ctx *gin.Context) {
-	_, err := strconv.Atoi(ctx.Param("id"))
+	catalogID, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog ID"})
 		return
@@ -186,7 +235,7 @@ func (c *CatalogProductController) DetachProduct(ctx *gin.Context) {
 
 	productID, err := strconv.Atoi(ctx.Param("product_id"))
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog product ID"})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
 		return
 	}
 
@@ -210,7 +259,7 @@ func (c *CatalogProductController) DetachProduct(ctx *gin.Context) {
 	}
 
 	// Detach product from catalog
-	err = c.catalogProductService.DetachProduct(productID)
+	err = c.catalogProductService.DetachProduct(catalogID, productID)
 	if err != nil {
 		if errors.Is(err, utils.ErrCatalogProductNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog product not found"})

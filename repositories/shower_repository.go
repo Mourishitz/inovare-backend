@@ -16,6 +16,7 @@ type ShowerRepository interface {
 	GetAll() ([]models.Shower, error)
 	GetAllPaginated(page, pageSize int) ([]models.Shower, int64, error)
 	GetByHostID(hostID uint) ([]models.Shower, error)
+	GetByCatalogID(catalogID uint) (*models.Shower, error)
 	Create(shower requests.CreateShowerRequest) (*models.Shower, error)
 	Update(id int, updates requests.UpdateShowerRequest) (*models.Shower, error)
 	AddCatalog(showerID int, catalog *models.Catalog) error
@@ -95,6 +96,18 @@ func (r *showerRepository) GetByHostID(hostID uint) ([]models.Shower, error) {
 	}
 
 	return showers, nil
+}
+
+// GetByCatalogID returns the shower that owns the given catalog, preloading the Host.
+func (r *showerRepository) GetByCatalogID(catalogID uint) (*models.Shower, error) {
+	var shower models.Shower
+	if err := r.db.Where("catalog_id = ?", catalogID).Preload("Host").First(&shower).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, utils.ErrShowerNotFound
+		}
+		return nil, err
+	}
+	return &shower, nil
 }
 
 // Create implements ShowerRepository.

@@ -10,6 +10,7 @@ type ProductService interface {
 	GetByID(id int) (*models.Product, error)
 	GetAll() ([]models.Product, error)
 	GetAllPaginated(page, pageSize int) ([]models.Product, int64, error)
+	Search(query string, catalogID *uint) ([]models.Product, error)
 	Create(product requests.CreateProductRequest) (*models.Product, error)
 	Update(id int, updates requests.UpdateProductRequest) (*models.Product, error)
 	Delete(id int) error
@@ -38,6 +39,11 @@ func (s *productService) GetAll() ([]models.Product, error) {
 // GetAllPaginated implements ProductService.
 func (s *productService) GetAllPaginated(page, pageSize int) ([]models.Product, int64, error) {
 	return s.productRepo.GetAllPaginated(page, pageSize)
+}
+
+// Search implements ProductService.
+func (s *productService) Search(query string, catalogID *uint) ([]models.Product, error) {
+	return s.productRepo.Search(query, catalogID)
 }
 
 // Create implements ProductService.

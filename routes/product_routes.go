@@ -10,8 +10,9 @@ import (
 
 func RegisterProductRoutes(router *gin.Engine) {
 	productService := services.NewProductService()
+	catalogProductService := services.NewCatalogProductService()
 	userService := services.NewUserService()
-	productController := controllers.NewProductController(productService, userService)
+	productController := controllers.NewProductController(productService, catalogProductService, userService)
 
 	// All product routes require authentication and admin role (Role 2+)
 	protected := router.Group("/api")
@@ -20,7 +21,9 @@ func RegisterProductRoutes(router *gin.Engine) {
 		products := protected.Group("/products")
 		{
 			products.GET("", productController.ListProducts)
+			products.GET("/search", productController.SearchProducts)
 			products.GET("/:id", productController.GetProduct)
+			products.GET("/:id/image", productController.GetProductImage)
 			products.POST("", productController.CreateProduct)
 			products.PATCH("/:id", productController.UpdateProduct)
 			products.DELETE("/:id", productController.DeleteProduct)

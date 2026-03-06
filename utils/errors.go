@@ -13,4 +13,5 @@ var (
 	ErrCatalogNotFound          = errors.New("catalog not found")
 	ErrProductAlreadyInCatalog  = errors.New("product already exists in this catalog")
 	ErrCatalogProductNotFound   = errors.New("catalog product not found")
+	ErrProductIsExclusive       = errors.New("product is exclusive and already assigned to a catalog")
 )

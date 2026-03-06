@@ -12,10 +12,13 @@ import (
 type CatalogProductRepository interface {
 	AttachProduct(catalogID int, req requests.AttachProductToCatalogRequest) (*models.CatalogProduct, error)
 	ProductExistsInCatalog(catalogID int, productID uint) (bool, error)
+	ProductExistsInAnyCatalog(productID uint) (bool, error)
+	GetCatalogIDByProductID(productID uint) (*uint, error)
 	GetByID(id int) (*models.CatalogProduct, error)
 	GetByCatalogID(catalogID int) ([]models.CatalogProduct, error)
 	Update(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error)
 	Delete(id int) error
+	DeleteByCatalogAndProductID(catalogID, productID int) error
 }
 
 type catalogProductRepository struct {
@@ -56,6 +59,31 @@ func (r *catalogProductRepository) AttachProduct(catalogID int, req requests.Att
 	}
 
 	return catalogProduct, nil
+}
+
+// GetCatalogIDByProductID returns the catalog ID a product is attached to, or nil if none
+func (r *catalogProductRepository) GetCatalogIDByProductID(productID uint) (*uint, error) {
+	var catalogProduct models.CatalogProduct
+	err := r.db.Select("catalog_id").Where("product_id = ?", productID).First(&catalogProduct).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &catalogProduct.CatalogID, nil
+}
+
+// ProductExistsInAnyCatalog checks if an exclusive product is already assigned to a catalog
+func (r *catalogProductRepository) ProductExistsInAnyCatalog(productID uint) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.Product{}).
+		Where("id = ? AND catalog_id IS NOT NULL", productID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 // ProductExistsInCatalog checks if a product already exists in a catalog
@@ -132,4 +160,17 @@ func (r *catalogProductRepository) Delete(id int) error {
 	}
 
 	return nil
+}
+
+// DeleteByCatalogAndProductID removes a product from a catalog by catalog_id + product_id
+func (r *catalogProductRepository) DeleteByCatalogAndProductID(catalogID, productID int) error {
+	var catalogProduct models.CatalogProduct
+	err := r.db.Where("catalog_id = ? AND product_id = ?", catalogID, productID).First(&catalogProduct).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return utils.ErrCatalogProductNotFound
+		}
+		return err
+	}
+	return r.db.Delete(&catalogProduct).Error
 }

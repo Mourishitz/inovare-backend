@@ -13,14 +13,16 @@ import (
 )
 
 type ProductController struct {
-	productService services.ProductService
-	userService    services.UserService
+	productService        services.ProductService
+	catalogProductService services.CatalogProductService
+	userService           services.UserService
 }
 
-func NewProductController(productService services.ProductService, userService services.UserService) *ProductController {
+func NewProductController(productService services.ProductService, catalogProductService services.CatalogProductService, userService services.UserService) *ProductController {
 	return &ProductController{
-		productService: productService,
-		userService:    userService,
+		productService:        productService,
+		catalogProductService: catalogProductService,
+		userService:           userService,
 	}
 }
 
@@ -69,8 +71,25 @@ func (c *ProductController) ListProducts(ctx *gin.Context) {
 		return
 	}
 
+	type productListItem struct {
+		ID          uint   `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		IsExclusive bool   `json:"is_exclusive"`
+	}
+
+	items := make([]productListItem, len(products))
+	for i, p := range products {
+		items[i] = productListItem{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			IsExclusive: p.IsExclusive,
+		}
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"data": products,
+		"data": items,
 		"pagination": gin.H{
 			"page":        page,
 			"page_size":   pageSize,
@@ -78,6 +97,49 @@ func (c *ProductController) ListProducts(ctx *gin.Context) {
 			"total_pages": (total + int64(pageSize) - 1) / int64(pageSize),
 		},
 	})
+}
+
+// SearchProducts handles GET /api/products/search
+func (c *ProductController) SearchProducts(ctx *gin.Context) {
+	query := ctx.Query("q")
+
+	var catalogID *uint
+	if rawID := ctx.Query("catalog_id"); rawID != "" {
+		id, err := strconv.ParseUint(rawID, 10, 64)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid catalog_id"})
+			return
+		}
+		uid := uint(id)
+		catalogID = &uid
+	}
+
+	products, err := c.productService.Search(query, catalogID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	type searchResultItem struct {
+		ID          uint   `json:"id"`
+		Name        string `json:"name"`
+		Description string `json:"description"`
+		ImageURL    string `json:"image_url"`
+		IsExclusive bool   `json:"is_exclusive"`
+	}
+
+	items := make([]searchResultItem, len(products))
+	for i, p := range products {
+		items[i] = searchResultItem{
+			ID:          p.ID,
+			Name:        p.Name,
+			Description: p.Description,
+			ImageURL:    p.ImageURL,
+			IsExclusive: p.IsExclusive,
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": items})
 }
 
 // GetProduct handles GET /api/products/:id
@@ -102,7 +164,44 @@ func (c *ProductController) GetProduct(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, product)
+	var catalogID *uint
+	if product.IsExclusive {
+		catalogID, err = c.catalogProductService.GetCatalogIDByProductID(product.ID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"id":           product.ID,
+		"name":         product.Name,
+		"description":  product.Description,
+		"image_url":    product.ImageURL,
+		"is_exclusive": product.IsExclusive,
+		"catalog_id":   catalogID,
+	})
+}
+
+// GetProductImage handles GET /api/products/:id/image
+func (c *ProductController) GetProductImage(ctx *gin.Context) {
+	id, err := strconv.Atoi(ctx.Param("id"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		return
+	}
+
+	product, err := c.productService.GetByID(id)
+	if err != nil {
+		if errors.Is(err, utils.ErrProductNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"image_url": product.ImageURL})
 }
 
 // CreateProduct handles POST /api/products

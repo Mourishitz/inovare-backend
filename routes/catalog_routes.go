@@ -19,7 +19,9 @@ func RegisterCatalogRoutes(router *gin.Engine) {
 	{
 		catalogs := protected.Group("/catalogs")
 		{
+			catalogs.GET("/:id", catalogController.GetByID)
 			catalogs.PATCH("/:id/approve", catalogController.ApproveCatalog)
+			catalogs.PATCH("/:id/changes-made", catalogController.RegisterChanges)
 		}
 	}
 }
