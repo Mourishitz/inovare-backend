@@ -21,14 +21,22 @@ type AddCatalogRequest struct {
 	Package int16 `json:"package" binding:"required,oneof=1 2"`
 }
 
+type MeasurementsRequest struct {
+	Bust      float32 `json:"bust" binding:"required,gt=0"`
+	UnderBust float32 `json:"underBust" binding:"required,gt=0"`
+	Waist     float32 `json:"waist" binding:"required,gt=0"`
+	Hip       float32 `json:"hip" binding:"required,gt=0"`
+}
+
 type AddPreferencesRequest struct {
-	Style            int16   `json:"style" binding:"required"`
-	FavoriteColors   []int16 `json:"favoriteColors" binding:"required"`
-	PreferredBra     int16   `json:"preferredBra" binding:"required"`
-	PreferredModel   int16   `json:"preferredModel" binding:"required"`
-	PreferredPanties int16   `json:"preferredPanties" binding:"required"`
-	Size             int16   `json:"size" binding:"required"`
-	AllowedModels    []int16 `json:"allowedModels" binding:"required"`
-	NotAllowedModels string  `json:"notAllowedModels" binding:"required"`
-	Notes            string  `json:"notes" binding:"required"`
+	Style            []int16      `json:"style" binding:"required"`
+	FavoriteColors   []int16      `json:"favoriteColors" binding:"required"`
+	PreferredBra     int16        `json:"preferredBra" binding:"required"`
+	PreferredModel   int16        `json:"preferredModel" binding:"required"`
+	PreferredPanties int16        `json:"preferredPanties" binding:"required"`
+	Size             int16        `json:"size" binding:"required"`
+	AllowedModels    []int16      `json:"allowedModels" binding:"required"`
+	NotAllowedModels string       `json:"notAllowedModels" binding:"required"`
+	Notes            string       `json:"notes" binding:"required"`
+	Measurements MeasurementsRequest `json:"measurements" binding:"required"`
 }

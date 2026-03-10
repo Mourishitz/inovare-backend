@@ -10,21 +10,24 @@ import (
 
 type CatalogService interface {
 	GetByID(id int) (*models.Catalog, error)
+	GetProductsByURL(url string) (*models.Catalog, []models.CatalogProduct, error)
 	Approve(id int) (*models.Catalog, error)
 	RegisterChanges(id int) (*models.Catalog, error)
 }
 
 type catalogService struct {
-	catalogRepo  repositories.CatalogRepository
-	showerRepo   repositories.ShowerRepository
-	emailService EmailService
+	catalogRepo        repositories.CatalogRepository
+	catalogProductRepo repositories.CatalogProductRepository
+	showerRepo         repositories.ShowerRepository
+	emailService       EmailService
 }
 
 func NewCatalogService() CatalogService {
 	return &catalogService{
-		catalogRepo:  repositories.NewCatalogRepository(),
-		showerRepo:   repositories.NewShowerRepository(),
-		emailService: NewEmailService(),
+		catalogRepo:        repositories.NewCatalogRepository(),
+		catalogProductRepo: repositories.NewCatalogProductRepository(),
+		showerRepo:         repositories.NewShowerRepository(),
+		emailService:       NewEmailService(),
 	}
 }
 
@@ -38,6 +41,25 @@ func (s *catalogService) GetByID(id int) (*models.Catalog, error) {
 		return nil, err
 	}
 	return catalog, nil
+}
+
+// GetProductsByURL fetches a catalog by URL and returns its products if approved
+func (s *catalogService) GetProductsByURL(url string) (*models.Catalog, []models.CatalogProduct, error) {
+	catalog, err := s.catalogRepo.GetByURL(url)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if !catalog.Approved {
+		return nil, nil, utils.ErrCatalogNotApproved
+	}
+
+	products, err := s.catalogProductRepo.GetByCatalogID(int(catalog.ID))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return catalog, products, nil
 }
 
 // Approve approves a catalog

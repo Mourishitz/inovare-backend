@@ -183,7 +183,7 @@ func (s *showerService) AddPreferences(showerID int, preferencesReq requests.Add
 	}
 
 	preferences := &models.Preferences{
-		Style:            preferencesReq.Style,
+		Style:            models.Int16Array(preferencesReq.Style),
 		FavoriteColors:   models.Int16Array(preferencesReq.FavoriteColors),
 		PreferredBra:     preferencesReq.PreferredBra,
 		PreferredModel:   preferencesReq.PreferredModel,
@@ -192,6 +192,12 @@ func (s *showerService) AddPreferences(showerID int, preferencesReq requests.Add
 		AllowedModels:    models.Int16Array(preferencesReq.AllowedModels),
 		NotAllowedModels: preferencesReq.NotAllowedModels,
 		Notes:            preferencesReq.Notes,
+		Measurements: models.Measurements{
+			Bust:      preferencesReq.Measurements.Bust,
+			UnderBust: preferencesReq.Measurements.UnderBust,
+			Waist:     preferencesReq.Measurements.Waist,
+			Hip:       preferencesReq.Measurements.Hip,
+		},
 	}
 
 	if err := s.showerRepo.AddPreferences(showerID, preferences); err != nil {

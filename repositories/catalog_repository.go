@@ -11,6 +11,7 @@ import (
 type CatalogRepository interface {
 	ExistsByURL(url string) (bool, error)
 	GetByID(id int) (*models.Catalog, error)
+	GetByURL(url string) (*models.Catalog, error)
 	Approve(id int) (*models.Catalog, error)
 	TouchUpdatedAt(id int) (*models.Catalog, error)
 }
@@ -42,6 +43,19 @@ func (r *catalogRepository) GetByID(id int) (*models.Catalog, error) {
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, gorm.ErrRecordNotFound
+		}
+		return nil, err
+	}
+	return &catalog, nil
+}
+
+// GetByURL retrieves a catalog by its URL slug
+func (r *catalogRepository) GetByURL(url string) (*models.Catalog, error) {
+	var catalog models.Catalog
+	err := r.db.Where("url = ?", url).First(&catalog).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, utils.ErrCatalogNotFound
 		}
 		return nil, err
 	}

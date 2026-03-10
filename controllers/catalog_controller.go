@@ -23,6 +23,30 @@ func NewCatalogController(catalogService services.CatalogService, userService se
 	}
 }
 
+// GetByURL handles GET /api/catalogs/url/:url
+func (c *CatalogController) GetByURL(ctx *gin.Context) {
+	url := ctx.Param("url")
+
+	catalog, products, err := c.catalogService.GetProductsByURL(url)
+	if err != nil {
+		if errors.Is(err, utils.ErrCatalogNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog not found"})
+			return
+		}
+		if errors.Is(err, utils.ErrCatalogNotApproved) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Catalog has not been approved yet"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"catalog":  catalog,
+		"products": products,
+	})
+}
+
 // GetByID handles GET /api/catalogs/:id
 func (c *CatalogController) GetByID(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))

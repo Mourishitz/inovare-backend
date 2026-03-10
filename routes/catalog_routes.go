@@ -14,6 +14,12 @@ func RegisterCatalogRoutes(router *gin.Engine) {
 
 	catalogController := controllers.NewCatalogController(catalogService, userService)
 
+	// Public routes (no auth required)
+	public := router.Group("/api/catalogs")
+	{
+		public.GET("/url/:url", catalogController.GetByURL)
+	}
+
 	protected := router.Group("/api")
 	protected.Use(middlewares.Authenticate())
 	{

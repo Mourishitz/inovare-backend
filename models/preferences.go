@@ -92,21 +92,39 @@ func (a Int16Array) Value() (driver.Value, error) {
 	return fmt.Sprintf("{%s}", strings.Join(strs, ",")), nil
 }
 
+type Measurements struct {
+	Bust      float32 `json:"bust"`
+	UnderBust float32 `json:"underBust"`
+	Waist     float32 `json:"waist"`
+	Hip       float32 `json:"hip"`
+}
+
 type Preferences struct {
 	gorm.Model
-	Style            int16      `json:"-" gorm:"default:1"`
+	Style            Int16Array   `json:"-" gorm:"type:smallint[]"`
 	FavoriteColors   Int16Array `json:"-" gorm:"type:smallint[]"`
 	PreferredBra     int16      `json:"-" gorm:"default:1"`
 	PreferredModel   int16      `json:"-" gorm:"default:1"`
 	PreferredPanties int16      `json:"-" gorm:"default:1"`
 	Size             int16      `json:"-" gorm:"default:1"`
-	AllowedModels    Int16Array `json:"allowedModels" gorm:"type:smallint[]"`
-	NotAllowedModels string     `json:"notAllowedModels" gorm:"type:text"`
-	Notes            string     `json:"notes" gorm:"type:text"`
+	AllowedModels    Int16Array   `json:"allowedModels" gorm:"type:smallint[]"`
+	NotAllowedModels string       `json:"notAllowedModels" gorm:"type:text"`
+	Notes            string       `json:"notes" gorm:"type:text"`
+	Measurements Measurements `json:"measurements" gorm:"embedded;embeddedPrefix:measurements_"`
 }
 
 // MarshalJSON implements custom JSON marshaling for Preferences
 func (p Preferences) MarshalJSON() ([]byte, error) {
+	// Convert style IDs to names
+	var styleNames []string
+	if len(p.Style) > 0 {
+		for _, styleID := range p.Style {
+			if styleName, ok := enums.StyleNames[int(styleID)]; ok {
+				styleNames = append(styleNames, styleName)
+			}
+		}
+	}
+
 	// Convert favorite color IDs to names
 	var favoriteColorNames []string
 	if len(p.FavoriteColors) > 0 {
@@ -130,7 +148,7 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 	type Alias Preferences
 	return json.Marshal(&struct {
 		*Alias
-		Style            string   `json:"style"`
+		Style            []string `json:"style"`
 		FavoriteColors   []string `json:"favoriteColors"`
 		PreferredBra     string   `json:"preferredBra"`
 		PreferredModel   string   `json:"preferredModel"`
@@ -139,7 +157,7 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 		AllowedModels    []string `json:"allowedModels"`
 	}{
 		Alias:            (*Alias)(&p),
-		Style:            getStyleName(p.Style),
+		Style:            styleNames,
 		FavoriteColors:   favoriteColorNames,
 		PreferredBra:     getBraName(p.PreferredBra),
 		PreferredModel:   getModelName(p.PreferredModel),
@@ -147,13 +165,6 @@ func (p Preferences) MarshalJSON() ([]byte, error) {
 		Size:             getSizeName(p.Size),
 		AllowedModels:    allowedModelNames,
 	})
-}
-
-func getStyleName(id int16) string {
-	if name, ok := enums.StyleNames[int(id)]; ok {
-		return name
-	}
-	return "Unknown"
 }
 
 func getBraName(id int16) string {
