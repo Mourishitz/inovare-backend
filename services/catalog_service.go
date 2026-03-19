@@ -1,8 +1,17 @@
 package services
 
 import (
+	"context"
+	"fmt"
+	"math"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	"inovare-backend/models"
 	"inovare-backend/repositories"
+	"inovare-backend/requests"
 	"inovare-backend/utils"
 
 	"gorm.io/gorm"
@@ -11,6 +20,7 @@ import (
 type CatalogService interface {
 	GetByID(id int) (*models.Catalog, error)
 	GetProductsByURL(url string) (*models.Catalog, []models.CatalogProduct, error)
+	CreatePublicPurchase(ctx context.Context, slug string, req requests.PublicCatalogPurchaseRequest) (*requests.PublicCatalogPurchaseResponse, error)
 	Approve(id int, userID int) (*models.Catalog, error)
 	RegisterChanges(id int) (*models.Catalog, error)
 }
@@ -20,6 +30,8 @@ type catalogService struct {
 	catalogProductRepo repositories.CatalogProductRepository
 	showerRepo         repositories.ShowerRepository
 	emailService       EmailService
+	paymentProvider    PaymentProviderService
+	now                func() time.Time
 }
 
 func NewCatalogService() CatalogService {
@@ -28,6 +40,8 @@ func NewCatalogService() CatalogService {
 		catalogProductRepo: repositories.NewCatalogProductRepository(),
 		showerRepo:         repositories.NewShowerRepository(),
 		emailService:       NewEmailService(),
+		paymentProvider:    NewAbacatePayService(),
+		now:                time.Now,
 	}
 }
 
@@ -60,6 +74,53 @@ func (s *catalogService) GetProductsByURL(url string) (*models.Catalog, []models
 	}
 
 	return catalog, products, nil
+}
+
+// CreatePublicPurchase creates an Abacate Pay PIX checkout for a public catalog product.
+func (s *catalogService) CreatePublicPurchase(ctx context.Context, slug string, req requests.PublicCatalogPurchaseRequest) (*requests.PublicCatalogPurchaseResponse, error) {
+	productID, err := parsePublicCatalogProductID(req.ProductID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := validatePurchaseCustomer(req.Customer); err != nil {
+		return nil, err
+	}
+
+	if err := validateCurrentURL(req.CurrentURL); err != nil {
+		return nil, err
+	}
+
+	catalog, products, err := s.GetProductsByURL(slug)
+	if err != nil {
+		return nil, err
+	}
+
+	catalogProduct, err := findCatalogProduct(products, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	if catalogProduct.IsBought {
+		return nil, utils.ErrCatalogProductAlreadyBought
+	}
+
+	checkoutURL, err := s.paymentProvider.CreatePIXBilling(ctx, CreatePIXBillingRequest{
+		ExternalID:    fmt.Sprintf("catalog:%d:product:%d:checkout:%d", catalog.ID, catalogProduct.ProductID, s.now().UnixMilli()),
+		Name:          catalogProduct.Product.Name,
+		Description:   catalogProduct.Product.Description,
+		PriceInCents:  int(math.Round(catalogProduct.Price)),
+		ReturnURL:     req.CurrentURL,
+		CompletionURL: req.CurrentURL,
+		Customer:      req.Customer,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &requests.PublicCatalogPurchaseResponse{
+		CheckoutURL: checkoutURL,
+	}, nil
 }
 
 // Approve approves a catalog if the authenticated user owns the related shower.
@@ -110,4 +171,47 @@ func (s *catalogService) RegisterChanges(id int) (*models.Catalog, error) {
 	_ = s.emailService.SendCatalogChangesNotification(shower.Host.Email, shower.Host.Username, catalog.ID)
 
 	return catalog, nil
+}
+
+func parsePublicCatalogProductID(value string) (uint, error) {
+	productID, err := strconv.ParseUint(strings.TrimSpace(value), 10, 32)
+	if err != nil || productID == 0 {
+		return 0, utils.ErrInvalidProductID
+	}
+
+	return uint(productID), nil
+}
+
+func validateCurrentURL(rawURL string) error {
+	parsedURL, err := url.ParseRequestURI(strings.TrimSpace(rawURL))
+	if err != nil || parsedURL == nil || parsedURL.Host == "" {
+		return utils.ErrInvalidCurrentURL
+	}
+
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return utils.ErrInvalidCurrentURL
+	}
+
+	return nil
+}
+
+func validatePurchaseCustomer(customer requests.PublicCatalogPurchaseCustomer) error {
+	if strings.TrimSpace(customer.Name) == "" ||
+		strings.TrimSpace(customer.Email) == "" ||
+		strings.TrimSpace(customer.Cellphone) == "" ||
+		strings.TrimSpace(customer.TaxID) == "" {
+		return utils.ErrInvalidCustomerData
+	}
+
+	return nil
+}
+
+func findCatalogProduct(products []models.CatalogProduct, productID uint) (*models.CatalogProduct, error) {
+	for i := range products {
+		if products[i].ProductID == productID {
+			return &products[i], nil
+		}
+	}
+
+	return nil, utils.ErrCatalogProductNotFound
 }

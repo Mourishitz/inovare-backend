@@ -20,6 +20,11 @@ func RegisterCatalogRoutes(router *gin.Engine) {
 		public.GET("/url/:url", catalogController.GetByURL)
 	}
 
+	publicCatalogs := router.Group("/api/public-catalogs")
+	{
+		publicCatalogs.POST("/:slug/purchase", catalogController.PurchasePublicCatalog)
+	}
+
 	protected := router.Group("/api")
 	protected.Use(middlewares.Authenticate())
 	{

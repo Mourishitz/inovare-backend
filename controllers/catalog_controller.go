@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"inovare-backend/requests"
 	"inovare-backend/services"
 	"inovare-backend/utils"
 
@@ -45,6 +46,47 @@ func (c *CatalogController) GetByURL(ctx *gin.Context) {
 		"catalog":  catalog,
 		"products": products,
 	})
+}
+
+// PurchasePublicCatalog handles POST /api/public-catalogs/:slug/purchase.
+func (c *CatalogController) PurchasePublicCatalog(ctx *gin.Context) {
+	slug := ctx.Param("slug")
+
+	var req requests.PublicCatalogPurchaseRequest
+	if !utils.BindAndValidate(ctx, &req) {
+		return
+	}
+
+	response, err := c.catalogService.CreatePublicPurchase(ctx.Request.Context(), slug, req)
+	if err != nil {
+		switch {
+		case errors.Is(err, utils.ErrInvalidProductID):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product ID"})
+		case errors.Is(err, utils.ErrInvalidCustomerData):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Customer name, email, cellphone, and taxId are required"})
+		case errors.Is(err, utils.ErrInvalidCurrentURL):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Current URL must be a valid absolute http(s) URL"})
+		case errors.Is(err, utils.ErrInvalidTaxID):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "CPF ou CNPJ inválido"})
+		case errors.Is(err, utils.ErrCatalogNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog not found"})
+		case errors.Is(err, utils.ErrCatalogProductNotFound):
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+		case errors.Is(err, utils.ErrCatalogProductAlreadyBought):
+			ctx.JSON(http.StatusConflict, gin.H{"error": "Product is no longer available"})
+		case errors.Is(err, utils.ErrCatalogNotApproved):
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Catalog has not been approved yet"})
+		case errors.Is(err, utils.ErrPaymentConfigurationMissing):
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Payment configuration is missing"})
+		case errors.Is(err, utils.ErrPaymentProviderUnavailable):
+			ctx.JSON(http.StatusBadGateway, gin.H{"error": "Unable to create checkout right now"})
+		default:
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		}
+		return
+	}
+
+	ctx.JSON(http.StatusOK, response)
 }
 
 // GetByID handles GET /api/catalogs/:id
