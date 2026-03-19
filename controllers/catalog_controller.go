@@ -83,23 +83,19 @@ func (c *CatalogController) ApproveCatalog(ctx *gin.Context) {
 		return
 	}
 
-	user, err := c.userService.GetByID(userID.(int))
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Only admins (Role 2+) can approve catalogs
-	if user.Role < 2 {
-		ctx.JSON(http.StatusForbidden, gin.H{"error": "Admin access required"})
-		return
-	}
-
 	// Approve catalog
-	catalog, err := c.catalogService.Approve(id)
+	catalog, err := c.catalogService.Approve(id, userID.(int))
 	if err != nil {
 		if errors.Is(err, utils.ErrCatalogNotFound) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog not found"})
+			return
+		}
+		if errors.Is(err, utils.ErrShowerNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Shower not found"})
+			return
+		}
+		if errors.Is(err, utils.ErrUnauthorizedShowerAccess) {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized to approve this catalog"})
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

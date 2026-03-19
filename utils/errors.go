@@ -15,4 +15,5 @@ var (
 	ErrCatalogProductNotFound   = errors.New("catalog product not found")
 	ErrProductIsExclusive       = errors.New("product is exclusive and already assigned to a catalog")
 	ErrCatalogNotApproved       = errors.New("catalog has not been approved yet")
+	ErrInvalidWebhookExternalID = errors.New("invalid payment webhook external id")
 )

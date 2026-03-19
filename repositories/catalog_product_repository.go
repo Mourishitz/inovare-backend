@@ -16,7 +16,9 @@ type CatalogProductRepository interface {
 	GetCatalogIDByProductID(productID uint) (*uint, error)
 	GetByID(id int) (*models.CatalogProduct, error)
 	GetByCatalogID(catalogID int) ([]models.CatalogProduct, error)
+	GetByCatalogAndProductID(catalogID int, productID uint) (*models.CatalogProduct, error)
 	Update(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error)
+	MarkAsBought(catalogID int, productID uint) (*models.CatalogProduct, error)
 	Delete(id int) error
 	DeleteByCatalogAndProductID(catalogID, productID int) error
 }
@@ -26,8 +28,12 @@ type catalogProductRepository struct {
 }
 
 func NewCatalogProductRepository() CatalogProductRepository {
+	return NewCatalogProductRepositoryWithDB(database.DB)
+}
+
+func NewCatalogProductRepositoryWithDB(db *gorm.DB) CatalogProductRepository {
 	return &catalogProductRepository{
-		db: database.DB,
+		db: db,
 	}
 }
 
@@ -123,6 +129,22 @@ func (r *catalogProductRepository) GetByCatalogID(catalogID int) ([]models.Catal
 	return catalogProducts, nil
 }
 
+// GetByCatalogAndProductID retrieves a catalog product by catalog and product IDs.
+func (r *catalogProductRepository) GetByCatalogAndProductID(catalogID int, productID uint) (*models.CatalogProduct, error) {
+	var catalogProduct models.CatalogProduct
+	err := r.db.Preload("Product").Preload("Catalog").
+		Where("catalog_id = ? AND product_id = ?", catalogID, productID).
+		First(&catalogProduct).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, utils.ErrCatalogProductNotFound
+		}
+		return nil, err
+	}
+
+	return &catalogProduct, nil
+}
+
 // Update updates a catalog product
 func (r *catalogProductRepository) Update(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error) {
 	catalogProduct, err := r.GetByID(id)
@@ -146,6 +168,20 @@ func (r *catalogProductRepository) Update(id int, updates requests.UpdateCatalog
 	}
 
 	return r.GetByID(id)
+}
+
+// MarkAsBought sets is_bought to true for the matching catalog product.
+func (r *catalogProductRepository) MarkAsBought(catalogID int, productID uint) (*models.CatalogProduct, error) {
+	catalogProduct, err := r.GetByCatalogAndProductID(catalogID, productID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.db.Model(catalogProduct).Update("is_bought", true).Error; err != nil {
+		return nil, err
+	}
+
+	return r.GetByID(int(catalogProduct.ID))
 }
 
 // Delete removes a catalog product (detaches product from catalog)

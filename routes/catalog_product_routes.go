@@ -17,6 +17,11 @@ func RegisterCatalogProductRoutes(router *gin.Engine) {
 		userService,
 	)
 
+	public := router.Group("/api/catalog-products")
+	{
+		public.POST("/buy", catalogProductController.MarkCatalogProductAsBought)
+	}
+
 	protected := router.Group("/api")
 	protected.Use(middlewares.Authenticate())
 	{

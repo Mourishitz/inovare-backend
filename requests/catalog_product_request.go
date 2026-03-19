@@ -6,6 +6,11 @@ type AttachProductToCatalogRequest struct {
 	IsBought  bool    `json:"is_bought" binding:"omitempty"`
 }
 
+type MarkCatalogProductAsBoughtRequest struct {
+	CatalogID uint `json:"catalog_id" binding:"required"`
+	ProductID uint `json:"product_id" binding:"required"`
+}
+
 type UpdateCatalogProductRequest struct {
 	Price    *float64 `json:"price" binding:"omitempty,min=0"`
 	IsBought *bool    `json:"is_bought" binding:"omitempty"`

@@ -1,10 +1,15 @@
 package services
 
 import (
+	"fmt"
+
+	"inovare-backend/database"
 	"inovare-backend/models"
 	"inovare-backend/repositories"
 	"inovare-backend/requests"
 	"inovare-backend/utils"
+	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -14,6 +19,8 @@ type CatalogProductService interface {
 	CreateExclusiveProduct(catalogID int, req requests.CreateExclusiveProductRequest) (*models.CatalogProduct, error)
 	GetCatalogIDByProductID(productID uint) (*uint, error)
 	ListCatalogProducts(catalogID int) ([]models.CatalogProduct, error)
+	MarkAsBought(req requests.MarkCatalogProductAsBoughtRequest) (*models.CatalogProduct, error)
+	MarkAsBoughtByExternalIDs(externalIDs []string) ([]models.CatalogProduct, error)
 	UpdateCatalogProduct(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error)
 	DetachProduct(catalogID, productID int) error
 }
@@ -118,6 +125,41 @@ func (s *catalogProductService) ListCatalogProducts(catalogID int) ([]models.Cat
 	return s.catalogProductRepo.GetByCatalogID(catalogID)
 }
 
+// MarkAsBought marks a catalog product as bought.
+func (s *catalogProductService) MarkAsBought(req requests.MarkCatalogProductAsBoughtRequest) (*models.CatalogProduct, error) {
+	return s.catalogProductRepo.MarkAsBought(int(req.CatalogID), req.ProductID)
+}
+
+// MarkAsBoughtByExternalIDs marks catalog products as bought using payment gateway external IDs.
+func (s *catalogProductService) MarkAsBoughtByExternalIDs(externalIDs []string) ([]models.CatalogProduct, error) {
+	updatedProducts := make([]models.CatalogProduct, 0, len(externalIDs))
+
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		catalogProductRepo := repositories.NewCatalogProductRepositoryWithDB(tx)
+
+		for _, externalID := range externalIDs {
+			catalogID, productID, err := parseCatalogProductExternalID(externalID)
+			if err != nil {
+				return err
+			}
+
+			catalogProduct, err := catalogProductRepo.MarkAsBought(int(catalogID), productID)
+			if err != nil {
+				return err
+			}
+
+			updatedProducts = append(updatedProducts, *catalogProduct)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedProducts, nil
+}
+
 // UpdateCatalogProduct updates a catalog product
 func (s *catalogProductService) UpdateCatalogProduct(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error) {
 	return s.catalogProductRepo.Update(id, updates)
@@ -126,4 +168,36 @@ func (s *catalogProductService) UpdateCatalogProduct(id int, updates requests.Up
 // DetachProduct detaches a product from a catalog
 func (s *catalogProductService) DetachProduct(catalogID, productID int) error {
 	return s.catalogProductRepo.DeleteByCatalogAndProductID(catalogID, productID)
+}
+
+func parseCatalogProductExternalID(externalID string) (uint, uint, error) {
+	parts := strings.Split(externalID, ":")
+
+	var catalogIDValue string
+	var productIDValue string
+
+	for i := 0; i < len(parts)-1; i++ {
+		switch parts[i] {
+		case "catalog":
+			catalogIDValue = parts[i+1]
+		case "product":
+			productIDValue = parts[i+1]
+		}
+	}
+
+	if catalogIDValue == "" || productIDValue == "" {
+		return 0, 0, fmt.Errorf("%w: %s", utils.ErrInvalidWebhookExternalID, externalID)
+	}
+
+	catalogID, err := strconv.ParseUint(catalogIDValue, 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %s", utils.ErrInvalidWebhookExternalID, externalID)
+	}
+
+	productID, err := strconv.ParseUint(productIDValue, 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("%w: %s", utils.ErrInvalidWebhookExternalID, externalID)
+	}
+
+	return uint(catalogID), uint(productID), nil
 }

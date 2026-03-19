@@ -27,6 +27,26 @@ func NewCatalogProductController(
 	}
 }
 
+// MarkCatalogProductAsBought handles POST /api/catalog-products/buy
+func (c *CatalogProductController) MarkCatalogProductAsBought(ctx *gin.Context) {
+	var req requests.MarkCatalogProductAsBoughtRequest
+	if !utils.BindAndValidate(ctx, &req) {
+		return
+	}
+
+	catalogProduct, err := c.catalogProductService.MarkAsBought(req)
+	if err != nil {
+		if errors.Is(err, utils.ErrCatalogProductNotFound) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Catalog product not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, catalogProduct)
+}
+
 // AttachProduct handles POST /api/catalogs/:id/attach-product
 func (c *CatalogProductController) AttachProduct(ctx *gin.Context) {
 	catalogID, err := strconv.Atoi(ctx.Param("id"))

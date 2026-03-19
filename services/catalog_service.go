@@ -11,7 +11,7 @@ import (
 type CatalogService interface {
 	GetByID(id int) (*models.Catalog, error)
 	GetProductsByURL(url string) (*models.Catalog, []models.CatalogProduct, error)
-	Approve(id int) (*models.Catalog, error)
+	Approve(id int, userID int) (*models.Catalog, error)
 	RegisterChanges(id int) (*models.Catalog, error)
 }
 
@@ -62,9 +62,29 @@ func (s *catalogService) GetProductsByURL(url string) (*models.Catalog, []models
 	return catalog, products, nil
 }
 
-// Approve approves a catalog
-func (s *catalogService) Approve(id int) (*models.Catalog, error) {
-	catalog, err := s.catalogRepo.Approve(id)
+// Approve approves a catalog if the authenticated user owns the related shower.
+func (s *catalogService) Approve(id int, userID int) (*models.Catalog, error) {
+	catalog, err := s.catalogRepo.GetByID(id)
+	if err != nil {
+		if err == utils.ErrCatalogNotFound || err == gorm.ErrRecordNotFound {
+			return nil, utils.ErrCatalogNotFound
+		}
+		return nil, err
+	}
+
+	shower, err := s.showerRepo.GetByCatalogID(catalog.ID)
+	if err != nil {
+		if err == utils.ErrShowerNotFound || err == gorm.ErrRecordNotFound {
+			return nil, utils.ErrShowerNotFound
+		}
+		return nil, err
+	}
+
+	if shower.HostID != uint(userID) {
+		return nil, utils.ErrUnauthorizedShowerAccess
+	}
+
+	catalog, err = s.catalogRepo.Approve(id)
 	if err != nil {
 		if err == utils.ErrCatalogNotFound || err == gorm.ErrRecordNotFound {
 			return nil, utils.ErrCatalogNotFound
