@@ -78,7 +78,7 @@ func (s *abacatePayService) CreatePIXBilling(ctx context.Context, req CreatePIXB
 
 	requestBody := abacateCreateBillingRequest{
 		Frequency: "ONE_TIME",
-		Methods:   []string{"PIX"},
+		Methods:   []string{"PIX", "CARD"},
 		Products: []abacateCreateBillingProduct{
 			{
 				ExternalID:  req.ExternalID,
