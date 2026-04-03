@@ -35,7 +35,7 @@ func NewProductRepository() ProductRepository {
 func (r *productRepository) GetByID(id int) (*models.Product, error) {
 	var product models.Product
 
-	if err := r.db.First(&product, id).Error; err != nil {
+	if err := r.db.Preload("Images").First(&product, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, utils.ErrProductNotFound
 		}
@@ -49,7 +49,7 @@ func (r *productRepository) GetByID(id int) (*models.Product, error) {
 func (r *productRepository) GetAll() ([]models.Product, error) {
 	var products []models.Product
 
-	if err := r.db.Find(&products).Error; err != nil {
+	if err := r.db.Preload("Images").Find(&products).Error; err != nil {
 		return nil, err
 	}
 
@@ -61,16 +61,13 @@ func (r *productRepository) GetAllPaginated(page, pageSize int) ([]models.Produc
 	var products []models.Product
 	var total int64
 
-	// Count total records
 	if err := r.db.Model(&models.Product{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Calculate offset
 	offset := (page - 1) * pageSize
 
-	// Get paginated results
-	if err := r.db.Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
+	if err := r.db.Preload("Images").Offset(offset).Limit(pageSize).Find(&products).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -89,7 +86,7 @@ func (r *productRepository) Search(query string, catalogID *uint) ([]models.Prod
 		db = db.Where("is_exclusive = false")
 	}
 
-	if err := db.Limit(5).Find(&products).Error; err != nil {
+	if err := db.Preload("Images").Limit(5).Find(&products).Error; err != nil {
 		return nil, err
 	}
 
@@ -101,12 +98,26 @@ func (r *productRepository) Create(product requests.CreateProductRequest) (*mode
 	newProduct := models.Product{
 		Name:        product.Name,
 		Description: product.Description,
-		ImageURL:    product.ImageURL,
 		IsExclusive: product.IsExclusive,
 		CatalogID:   product.CatalogID,
 	}
 
 	if err := r.db.Create(&newProduct).Error; err != nil {
+		return nil, err
+	}
+
+	for i, imageURL := range product.Images {
+		image := models.ProductImage{
+			ProductID: newProduct.ID,
+			ImageURL:  imageURL,
+			IsPrimary: i == 0,
+		}
+		if err := r.db.Create(&image).Error; err != nil {
+			return nil, err
+		}
+	}
+
+	if err := r.db.Preload("Images").First(&newProduct, newProduct.ID).Error; err != nil {
 		return nil, err
 	}
 
@@ -128,9 +139,6 @@ func (r *productRepository) Update(id int, updates requests.UpdateProductRequest
 	if updates.Description != nil {
 		updateData["description"] = *updates.Description
 	}
-	if updates.ImageURL != nil {
-		updateData["image_url"] = *updates.ImageURL
-	}
 	if updates.IsExclusive != nil {
 		updateData["is_exclusive"] = *updates.IsExclusive
 	}
@@ -141,7 +149,28 @@ func (r *productRepository) Update(id int, updates requests.UpdateProductRequest
 		}
 	}
 
-	return r.GetByID(id)
+	if updates.Images != nil {
+		if err := r.db.Where("product_id = ?", id).Delete(&models.ProductImage{}).Error; err != nil {
+			return nil, err
+		}
+
+		for i, imageURL := range *updates.Images {
+			image := models.ProductImage{
+				ProductID: uint(id),
+				ImageURL:  imageURL,
+				IsPrimary: i == 0,
+			}
+			if err := r.db.Create(&image).Error; err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := r.db.Preload("Images").First(product, id).Error; err != nil {
+		return nil, err
+	}
+
+	return product, nil
 }
 
 // Delete implements ProductRepository.

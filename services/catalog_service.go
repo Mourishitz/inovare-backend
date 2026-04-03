@@ -68,7 +68,7 @@ func (s *catalogService) GetProductsByURL(url string) (*models.Catalog, []models
 		return nil, nil, utils.ErrCatalogNotApproved
 	}
 
-	products, err := s.catalogProductRepo.GetByCatalogID(int(catalog.ID))
+	products, err := s.catalogProductRepo.GetByCatalogIDWithFirstImage(int(catalog.ID))
 	if err != nil {
 		return nil, nil, err
 	}

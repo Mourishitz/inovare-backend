@@ -16,6 +16,7 @@ type CatalogProductRepository interface {
 	GetCatalogIDByProductID(productID uint) (*uint, error)
 	GetByID(id int) (*models.CatalogProduct, error)
 	GetByCatalogID(catalogID int) ([]models.CatalogProduct, error)
+	GetByCatalogIDWithFirstImage(catalogID int) ([]models.CatalogProduct, error)
 	GetByCatalogAndProductID(catalogID int, productID uint) (*models.CatalogProduct, error)
 	Update(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error)
 	MarkAsBought(catalogID int, productID uint) (*models.CatalogProduct, error)
@@ -126,6 +127,26 @@ func (r *catalogProductRepository) GetByCatalogID(catalogID int) ([]models.Catal
 	if err != nil {
 		return nil, err
 	}
+	return catalogProducts, nil
+}
+
+// GetByCatalogIDWithFirstImage retrieves all products in a catalog with only the first image for each product
+func (r *catalogProductRepository) GetByCatalogIDWithFirstImage(catalogID int) ([]models.CatalogProduct, error) {
+	var catalogProducts []models.CatalogProduct
+	err := r.db.Preload("Product").Preload("Product.Images", "id = (SELECT MIN(id) FROM product_images WHERE product_id = product_images.product_id)").Preload("Catalog").
+		Where("catalog_id = ?", catalogID).
+		Find(&catalogProducts).Error
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range catalogProducts {
+		if len(catalogProducts[i].Product.Images) > 0 {
+			catalogProducts[i].Product.ImageURL = catalogProducts[i].Product.Images[0].ImageURL
+		}
+		catalogProducts[i].Product.Images = nil
+	}
+
 	return catalogProducts, nil
 }
 

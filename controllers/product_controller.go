@@ -121,20 +121,24 @@ func (c *ProductController) SearchProducts(ctx *gin.Context) {
 	}
 
 	type searchResultItem struct {
-		ID          uint   `json:"id"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-		ImageURL    string `json:"image_url"`
-		IsExclusive bool   `json:"is_exclusive"`
+		ID          uint     `json:"id"`
+		Name        string   `json:"name"`
+		Description string   `json:"description"`
+		Images      []string `json:"images"`
+		IsExclusive bool     `json:"is_exclusive"`
 	}
 
 	items := make([]searchResultItem, len(products))
 	for i, p := range products {
+		images := make([]string, len(p.Images))
+		for j, img := range p.Images {
+			images[j] = img.ImageURL
+		}
 		items[i] = searchResultItem{
 			ID:          p.ID,
 			Name:        p.Name,
 			Description: p.Description,
-			ImageURL:    p.ImageURL,
+			Images:      images,
 			IsExclusive: p.IsExclusive,
 		}
 	}
@@ -173,11 +177,16 @@ func (c *ProductController) GetProduct(ctx *gin.Context) {
 		}
 	}
 
+	var images []string
+	for _, img := range product.Images {
+		images = append(images, img.ImageURL)
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"id":           product.ID,
 		"name":         product.Name,
 		"description":  product.Description,
-		"image_url":    product.ImageURL,
+		"images":       images,
 		"is_exclusive": product.IsExclusive,
 		"catalog_id":   catalogID,
 	})
@@ -201,7 +210,12 @@ func (c *ProductController) GetProductImage(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, gin.H{"image_url": product.ImageURL})
+	var images []string
+	for _, img := range product.Images {
+		images = append(images, img.ImageURL)
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"images": images})
 }
 
 // CreateProduct handles POST /api/products

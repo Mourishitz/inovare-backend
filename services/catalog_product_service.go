@@ -19,6 +19,7 @@ type CatalogProductService interface {
 	CreateExclusiveProduct(catalogID int, req requests.CreateExclusiveProductRequest) (*models.CatalogProduct, error)
 	GetCatalogIDByProductID(productID uint) (*uint, error)
 	ListCatalogProducts(catalogID int) ([]models.CatalogProduct, error)
+	ListCatalogProductsWithFirstImage(catalogID int) ([]models.CatalogProduct, error)
 	MarkAsBought(req requests.MarkCatalogProductAsBoughtRequest) (*models.CatalogProduct, error)
 	MarkAsBoughtByExternalIDs(externalIDs []string) ([]models.CatalogProduct, error)
 	UpdateCatalogProduct(id int, updates requests.UpdateCatalogProductRequest) (*models.CatalogProduct, error)
@@ -90,7 +91,7 @@ func (s *catalogProductService) CreateExclusiveProduct(catalogID int, req reques
 	product, err := s.productRepo.Create(requests.CreateProductRequest{
 		Name:        req.Name,
 		Description: req.Description,
-		ImageURL:    req.ImageURL,
+		Images:      req.Images,
 		IsExclusive: true,
 		CatalogID:   &catalogIDUint,
 	})
@@ -123,6 +124,18 @@ func (s *catalogProductService) ListCatalogProducts(catalogID int) ([]models.Cat
 	}
 
 	return s.catalogProductRepo.GetByCatalogID(catalogID)
+}
+
+func (s *catalogProductService) ListCatalogProductsWithFirstImage(catalogID int) ([]models.CatalogProduct, error) {
+	_, err := s.catalogRepo.GetByID(catalogID)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, utils.ErrCatalogNotFound
+		}
+		return nil, err
+	}
+
+	return s.catalogProductRepo.GetByCatalogIDWithFirstImage(catalogID)
 }
 
 // MarkAsBought marks a catalog product as bought.

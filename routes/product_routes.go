@@ -23,10 +23,10 @@ func RegisterProductRoutes(router *gin.Engine) {
 			products.GET("", productController.ListProducts)
 			products.GET("/search", productController.SearchProducts)
 			products.GET("/:id", productController.GetProduct)
-			products.GET("/:id/image", productController.GetProductImage)
 			products.POST("", productController.CreateProduct)
 			products.PATCH("/:id", productController.UpdateProduct)
 			products.DELETE("/:id", productController.DeleteProduct)
 		}
 	}
+	router.GET("/api/products/:id/image", productController.GetProductImage)
 }

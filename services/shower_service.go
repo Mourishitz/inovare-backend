@@ -227,7 +227,7 @@ func (s *showerService) GetCatalogWithProducts(showerID int) (*models.Catalog, [
 	}
 
 	// Get all products in the catalog
-	products, err := s.catalogProductRepo.GetByCatalogID(int(*shower.CatalogID))
+	products, err := s.catalogProductRepo.GetByCatalogIDWithFirstImage(int(*shower.CatalogID))
 	if err != nil {
 		return nil, nil, err
 	}
@@ -243,9 +243,9 @@ func (s *showerService) GetDashboardStats() (map[string]interface{}, error) {
 	}
 
 	return map[string]interface{}{
-		"total_showers":           totalShowers,
-		"approved_catalogs":       approvedCatalogs,
-		"not_approved_catalogs":   notApprovedCatalogs,
-		"recent_showers":          recentShowers,
+		"total_showers":         totalShowers,
+		"approved_catalogs":     approvedCatalogs,
+		"not_approved_catalogs": notApprovedCatalogs,
+		"recent_showers":        recentShowers,
 	}, nil
 }
